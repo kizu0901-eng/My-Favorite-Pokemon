@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Favorite Pokemon</title>
+    <title>My　Favorite　Pokemon</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         :root {
@@ -140,11 +140,15 @@
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-        /* 保存エリア設定（タイトル除外済み） */
+        /* --- 保存エリア設定（背景画像を追加） --- */
         #capture-area {
             position: absolute; left: -9999px; top: 0;
             width: 1300px;
-            background: var(--bg-color);
+            /* 画像の上に薄く白を被せて文字を読みやすくする */
+            background: linear-gradient(rgba(245, 247, 249, 0.85), rgba(245, 247, 249, 0.85)), 
+                        url('https://raw.githubusercontent.com/kizu0901-eng/My-Favorite-Pokemon/main/miare.png');
+            background-size: cover;
+            background-position: center;
             padding: 60px 80px;
             display: flex;
             flex-direction: column;
@@ -289,13 +293,11 @@ async function selectSpecies(speciesId, jpName) {
     const speciesData = await res.json();
     const varieties = speciesData.varieties;
 
-    // 姿違いが1つだけなら即座に決定
     if (varieties.length === 1) {
         setPokemon(currentTargetSlot, varieties[0].pokemon.url, jpName);
         return;
     }
 
-    // 姿違いがある場合のみボタンを表示
     const resultsDiv = document.getElementById('search-results');
     resultsDiv.innerHTML = `<p style="font-weight:bold; margin-bottom:10px;">姿を選択してください:</p>`;
     
@@ -350,8 +352,9 @@ document.getElementById('save-btn').onclick = async () => {
         const captureArea = document.getElementById('capture-area');
         const canvas = await html2canvas(captureArea, {
             useCORS: true,
+            allowTaint: false,
             scale: 2,
-            backgroundColor: '#f5f7f9',
+            backgroundColor: null, // 背景透過を考慮
             width: 1300,
             windowWidth: 1300,
             x: 0,
@@ -362,7 +365,8 @@ document.getElementById('save-btn').onclick = async () => {
         link.href = canvas.toDataURL('image/png');
         link.click();
     } catch (e) {
-        alert("画像の保存に失敗しました。");
+        console.error(e);
+        alert("画像の保存に失敗しました。背景画像の読み込みでエラーが起きた可能性があります。");
     }
     btn.innerText = "画像として保存する"; btn.disabled = false;
 };
