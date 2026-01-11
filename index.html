@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Favorite Pokemon</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #f5f7f9;
+            --card-bg: #ffffff;
+            --primary-text: #333;
+            --accent-color: #3b82f6;
+            --border-radius: 20px;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 20px;
+            color: var(--primary-text);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 { margin-bottom: 10px; font-size: 1.5rem; }
+        .section-title {
+            width: 100%;
+            max-width: 1200px;
+            margin: 20px 0 10px;
+            font-weight: bold;
+            font-size: 1.2rem;
+            border-left: 5px solid var(--accent-color);
+            padding-left: 10px;
+        }
+
+        .grid-container {
+            display: grid;
+            width: 100%;
+            max-width: 1200px;
+            gap: 15px;
+            margin-bottom: 30px;
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        @media (min-width: 768px) {
+            .grid-container { grid-template-columns: repeat(5, 1fr); }
+        }
+
+        .poke-card {
+            background: var(--card-bg);
+            border-radius: var(--border-radius);
+            aspect-ratio: 1 / 1;
+            position: relative;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            border: 5px solid #eee;
+            transition: transform 0.2s, box-shadow 0.2s;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            box-sizing: border-box;
+        }
+
+        .poke-card img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            padding: 15px;
+            box-sizing: border-box;
+        }
+
+        .poke-card .placeholder { font-size: 3rem; color: #ddd; }
+
+        .poke-card .name-label {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            background: rgba(255,255,255,0.9);
+            text-align: center;
+            font-size: 0.75rem;
+            padding: 6px 0;
+            font-weight: bold;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        #modal-overlay {
+            position: fixed; top:0; left:0; width:100%; height:100%;
+            background: rgba(0,0,0,0.6); display: none;
+            justify-content: center; align-items: center; z-index: 1000;
+        }
+
+        .modal-content {
+            background: white; width: 90%; max-width: 500px;
+            border-radius: 20px; padding: 25px; max-height: 80vh; overflow-y: auto;
+        }
+
+        .search-input {
+            width: 100%; padding: 15px; border-radius: 12px;
+            border: 2px solid #eee; box-sizing: border-box;
+            font-size: 1rem; margin-bottom: 15px; outline: none;
+        }
+
+        .result-item {
+            padding: 12px; border-bottom: 1px solid #f0f0f0;
+            cursor: pointer; display: flex; align-items: center; gap: 10px;
+            border-radius: 8px; transition: background 0.2s;
+        }
+        .result-item:hover { background: #f0f7ff; }
+
+        .variety-btn {
+            display: inline-block; padding: 10px 20px; margin: 5px;
+            background: #f0f0f0; border-radius: 30px; cursor: pointer;
+            font-weight: bold; font-size: 0.9rem; transition: all 0.2s;
+        }
+        .variety-btn:hover { background: var(--accent-color); color: white; }
+
+        #save-btn {
+            background: #ff4d6d; color: white; border: none;
+            padding: 18px 50px; border-radius: 50px;
+            font-size: 1.1rem; font-weight: bold; cursor: pointer;
+            margin: 40px 0; box-shadow: 0 4px 15px rgba(255, 77, 109, 0.3);
+        }
+
+        #loading-screen {
+            position: fixed; top:0; left:0; width:100%; height:100%;
+            background: white; display: flex; flex-direction: column;
+            justify-content: center; align-items: center; z-index: 9999;
+        }
+        .spinner {
+            width: 60px; height: 60px; border: 6px solid #f3f3f3;
+            border-top: 6px solid var(--accent-color); border-radius: 50%;
+            animation: spin 1s linear infinite; margin-bottom: 20px;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* 保存エリア設定（タイトル除外済み） */
+        #capture-area {
+            position: absolute; left: -9999px; top: 0;
+            width: 1300px;
+            background: var(--bg-color);
+            padding: 60px 80px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            box-sizing: border-box;
+        }
+        .capture-grid {
+            display: grid; 
+            grid-template-columns: repeat(5, 210px);
+            gap: 20px; 
+            width: 1130px;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+<body>
+
+<div id="loading-screen">
+    <div class="spinner"></div>
+    <p id="loading-text">ポケモンデータをロード中... (0%)</p>
+</div>
+
+<h1>My Favorite Pokemon 15</h1>
+
+<div class="section-title">推しTOP 5</div>
+<div id="grid-top5" class="grid-container"></div>
+
+<div class="section-title">その他推し</div>
+<div id="grid-others" class="grid-container"></div>
+
+<button id="save-btn">画像として保存する</button>
+
+<div id="capture-area">
+    <div class="section-title" style="font-size: 32px; border-left-width: 12px; margin-bottom: 20px;">推しTOP 5</div>
+    <div id="capture-top5" class="capture-grid"></div>
+    <div class="section-title" style="font-size: 32px; border-left-width: 12px; margin-top: 60px; margin-bottom: 20px;">その他推し</div>
+    <div id="capture-others" class="capture-grid"></div>
+</div>
+
+<div id="modal-overlay">
+    <div class="modal-content">
+        <h3>ポケモンを検索</h3>
+        <input type="text" id="search-input" class="search-input" placeholder="例: ピカチュウ">
+        <div id="search-results"></div>
+        <button onclick="closeModal()" style="width:100%; padding:12px; margin-top:20px; border-radius:12px; border:none; background:#eee; cursor:pointer; font-weight:bold;">閉じる</button>
+    </div>
+</div>
+
+<script>
+const POKE_API_BASE = 'https://pokeapi.co/api/v2';
+const pokemonMasterList = [];
+let teamData = Array(15).fill(null);
+let currentTargetSlot = null;
+
+const formTranslations = {
+    'alola': 'アローラ', 'galar': 'ガラル', 'hisui': 'ヒスイ', 'paldea': 'パルデア',
+    'mega': 'メガシンカ', 'mega-x': 'メガシンカX', 'mega-y': 'メガシンカY',
+    'gmax': 'キョダイマックス', 'midday': 'まひる', 'midnight': 'まよなか',
+    'dusk': 'たそがれ', 'origin': 'オリジン', 'mega-rayquaza': 'メガシンカ'
+};
+
+const typeColors = {
+    normal: '#A8A878', fire: '#F08030', water: '#6890F0', grass: '#78C850',
+    electric: '#F8D030', ice: '#98D8D8', fighting: '#C03028', poison: '#A040A0',
+    ground: '#E0C068', flying: '#A890F0', psychic: '#F85888', bug: '#A8B820',
+    rock: '#B8A038', ghost: '#705898', dragon: '#7038F8', dark: '#705848',
+    steel: '#B8B8D0', fairy: '#EE99AC'
+};
+
+async function init() {
+    try {
+        const response = await fetch(`${POKE_API_BASE}/pokemon-species?limit=1025`);
+        const data = await response.json();
+        const results = data.results;
+        
+        const batchSize = 40;
+        for (let i = 0; i < results.length; i += batchSize) {
+            const batch = results.slice(i, i + batchSize);
+            await Promise.all(batch.map(async (p) => {
+                const res = await fetch(p.url);
+                const detail = await res.json();
+                const jpName = detail.names.find(n => n.language.name === 'ja-Hrkt')?.name || detail.name;
+                pokemonMasterList.push({ id: detail.id, name: detail.name, jpName: jpName });
+            }));
+            let progress = Math.min(100, Math.round(((i + batchSize) / results.length) * 100));
+            document.getElementById('loading-text').innerText = `ポケモンデータをロード中... (${progress}%)`;
+        }
+        document.getElementById('loading-screen').style.display = 'none';
+        renderGrids();
+    } catch (e) {
+        document.getElementById('loading-text').innerText = "エラー。再読み込みしてください。";
+    }
+}
+
+function renderGrids() {
+    const t5 = document.getElementById('grid-top5');
+    const ot = document.getElementById('grid-others');
+    for (let i = 0; i < 15; i++) {
+        const card = createCard(i);
+        if (i < 5) t5.appendChild(card); else ot.appendChild(card);
+    }
+}
+
+function createCard(index) {
+    const div = document.createElement('div');
+    div.className = 'poke-card';
+    div.id = `slot-${index}`;
+    div.innerHTML = `<div class="placeholder">+</div><div class="name-label">選択</div>`;
+    div.onclick = () => openSearch(index);
+    return div;
+}
+
+function openSearch(index) {
+    currentTargetSlot = index;
+    document.getElementById('modal-overlay').style.display = 'flex';
+    document.getElementById('search-input').value = '';
+    document.getElementById('search-results').innerHTML = '';
+    document.getElementById('search-input').focus();
+}
+
+function closeModal() {
+    document.getElementById('modal-overlay').style.display = 'none';
+}
+
+document.getElementById('search-input').oninput = (e) => {
+    const val = e.target.value.trim();
+    if (val.length < 1) return;
+    const filtered = pokemonMasterList.filter(p => p.jpName.includes(val)).slice(0, 10);
+    const resultsDiv = document.getElementById('search-results');
+    resultsDiv.innerHTML = '';
+    filtered.forEach(p => {
+        const item = document.createElement('div');
+        item.className = 'result-item';
+        item.innerText = p.jpName;
+        item.onclick = () => selectSpecies(p.id, p.jpName);
+        resultsDiv.appendChild(item);
+    });
+};
+
+async function selectSpecies(speciesId, jpName) {
+    const res = await fetch(`${POKE_API_BASE}/pokemon-species/${speciesId}`);
+    const speciesData = await res.json();
+    const varieties = speciesData.varieties;
+
+    // 姿違いが1つだけなら即座に決定
+    if (varieties.length === 1) {
+        setPokemon(currentTargetSlot, varieties[0].pokemon.url, jpName);
+        return;
+    }
+
+    // 姿違いがある場合のみボタンを表示
+    const resultsDiv = document.getElementById('search-results');
+    resultsDiv.innerHTML = `<p style="font-weight:bold; margin-bottom:10px;">姿を選択してください:</p>`;
+    
+    varieties.forEach(v => {
+        const raw = v.pokemon.name.replace(speciesData.name, '').replace(/^-/, '');
+        const suffix = formTranslations[raw] || raw;
+        const finalName = raw ? `${jpName} (${suffix})` : jpName;
+        
+        const btn = document.createElement('div');
+        btn.className = 'variety-btn';
+        btn.innerText = suffix ? suffix : "通常";
+        btn.onclick = () => setPokemon(currentTargetSlot, v.pokemon.url, finalName);
+        resultsDiv.appendChild(btn);
+    });
+}
+
+async function setPokemon(slotIdx, url, displayName) {
+    const res = await fetch(url);
+    const poke = await res.json();
+    const img = poke.sprites.other['official-artwork'].front_default || poke.sprites.front_default;
+    const color = typeColors[poke.types[0].type.name] || '#eee';
+    
+    teamData[slotIdx] = { name: displayName, image: img, color: color };
+    const card = document.getElementById(`slot-${slotIdx}`);
+    card.style.borderColor = color;
+    card.innerHTML = `<img src="${img}"><div class="name-label">${displayName}</div>`;
+    closeModal();
+}
+
+document.getElementById('save-btn').onclick = async () => {
+    const btn = document.getElementById('save-btn');
+    btn.innerText = "生成中..."; btn.disabled = true;
+
+    const capTop5 = document.getElementById('capture-top5');
+    const capOthers = document.getElementById('capture-others');
+    capTop5.innerHTML = ''; capOthers.innerHTML = '';
+
+    teamData.forEach((data, i) => {
+        const card = document.createElement('div');
+        card.className = 'poke-card';
+        card.style.width = '210px'; card.style.height = '210px'; 
+        card.style.borderColor = data ? data.color : '#eee';
+        if (data) {
+            card.innerHTML = `<img src="${data.image}"><div class="name-label" style="font-size:14px; padding:8px 0;">${data.name}</div>`;
+        } else { 
+            card.innerHTML = `<div class="placeholder">+</div>`; 
+        }
+        if (i < 5) capTop5.appendChild(card); else capOthers.appendChild(card);
+    });
+
+    try {
+        const captureArea = document.getElementById('capture-area');
+        const canvas = await html2canvas(captureArea, {
+            useCORS: true,
+            scale: 2,
+            backgroundColor: '#f5f7f9',
+            width: 1300,
+            windowWidth: 1300,
+            x: 0,
+            y: 0
+        });
+        const link = document.createElement('a');
+        link.download = `my-pokemon-fav.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+    } catch (e) {
+        alert("画像の保存に失敗しました。");
+    }
+    btn.innerText = "画像として保存する"; btn.disabled = false;
+};
+
+init();
+</script>
+</body>
+</html>
